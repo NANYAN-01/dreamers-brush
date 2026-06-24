@@ -55,3 +55,6 @@ pnpm-debug.log*
 *.tmp
 *.temp
 .cache/
+
+# 文档目录
+docs/
