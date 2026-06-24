@@ -33,14 +33,19 @@ export interface ImageRecord {
 }
 
 export const api = {
-  // 生成图片
-  async generateImage(prompt: string, model = 'qwen-image-2.0', size = '1024*1536'): Promise<GenerateImageResponse> {
+  // 生成图片（model 不传则使用后端 .env 配置）
+  async generateImage(prompt: string, model?: string, size = '1024*1536'): Promise<GenerateImageResponse> {
+    const body: Record<string, string> = { prompt, size };
+    if (model) {
+      body.model = model;
+    }
+
     const response = await fetch(`${API_BASE_URL}/api/generate-image`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ prompt, model, size }),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {

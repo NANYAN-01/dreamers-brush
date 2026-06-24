@@ -2,12 +2,12 @@
   "name": "dreamers-brush",
   "version": "1.0.0",
   "scripts": {
-    "dev": "webpack serve",
-    "build": "webpack --mode production",
-    "typecheck": "tsc --noEmit",
+    "dev": "webpack serve --config client/webpack.config.js",
+    "build": "webpack --mode production --config client/webpack.config.js",
+    "typecheck": "tsc --noEmit --project client/tsconfig.json",
     "server": "node server/index.js",
     "server:dev": "nodemon server/index.js",
-    "db:init": "node scripts/init-db-interactive.js"
+    "db:init": "node database/scripts/init-db-interactive.js"
   },
   "dependencies": {
     "axios": "^1.15.2",

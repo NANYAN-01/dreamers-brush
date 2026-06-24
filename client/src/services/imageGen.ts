@@ -8,7 +8,7 @@ export function buildPrompt(character: string, action: string): string {
 
 export async function generateImage(
   prompt: string,
-  model: 'qwen-image-2.0' | 'wan2.7-image' = 'qwen-image-2.0',
+  model?: string,  // 不传则使用后端 .env 配置
   size?: string
 ) {
   return api.generateImage(prompt, model, size);

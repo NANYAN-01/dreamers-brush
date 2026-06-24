@@ -1,64 +1,68 @@
 @echo off
-echo ====================================
-echo Dreamer's Brush 快速启动脚本
-echo ====================================
+chcp 65001 >nul
+title 童梦画笔 - Dreamer's Brush
+cd /d "%~dp0"
+
+echo.
+echo  ╔══════════════════════════════════════════╗
+echo  ║      童梦画笔 - Dreamer's Brush          ║
+echo  ║      AI 绘本插画生成器                    ║
+echo  ╚══════════════════════════════════════════╝
 echo.
 
-echo [1/3] 检查依赖...
+:: 检查依赖
+echo [1/2] 检查依赖...
 if not exist node_modules (
-    echo 正在安装依赖...
+    echo       正在安装依赖...
     call npm install
     if errorlevel 1 (
-        echo 依赖安装失败！
+        echo [错误] 依赖安装失败！
         pause
         exit /b 1
     )
 )
-echo ✓ 依赖已安装
+echo       依赖已就绪
 echo.
 
-echo [2/3] 检查数据库...
-echo 请确保 MySQL 服务已启动
+:: 启动服务
+echo [2/2] 启动服务...
 echo.
-set /p mysql_running="MySQL 服务是否已启动? (y/n): "
-if /i not "%mysql_running%"=="y" (
-    echo 请先启动 MySQL 服务，然后重新运行此脚本
-    pause
-    exit /b 1
+
+:: 检查端口是否被占用
+netstat -ano | findstr ":3266.*LISTEN" >nul 2>&1
+if not errorlevel 1 (
+    echo [警告] 端口 3266 已被占用，前端可能已在运行
+) else (
+    echo       启动前端服务器 (端口 3266)...
+    start "童梦画笔 - 前端" cmd /k "cd /d "%~dp0" && npm run dev"
 )
 
-set /p db_initialized="数据库是否已初始化? (y/n): "
-if /i not "%db_initialized%"=="y" (
-    echo.
-    echo 正在初始化数据库...
-    call npm run db:init
-    if errorlevel 1 (
-        echo 数据库初始化失败！
-        pause
-        exit /b 1
-    )
+netstat -ano | findstr ":3001.*LISTEN" >nul 2>&1
+if not errorlevel 1 (
+    echo [警告] 端口 3001 已被占用，后端可能已在运行
+) else (
+    echo       启动后端服务器 (端口 3001)...
+    start "童梦画笔 - 后端" cmd /k "cd /d "%~dp0" && npm run server"
 )
-echo ✓ 数据库已就绪
-echo.
-
-echo [3/3] 启动服务...
-echo.
-echo 正在启动后端服务器...
-start cmd /k "title Dreamer's Brush - Backend && npm run server"
-
-timeout /t 3 /nobreak >nul
-
-echo 正在启动前端服务器...
-start cmd /k "title Dreamer's Brush - Frontend && npm run dev"
 
 echo.
-echo ====================================
-echo 启动完成！
-echo ====================================
+echo  ╔══════════════════════════════════════════╗
+echo  ║            服务启动完成！                  ║
+echo  ╠══════════════════════════════════════════╣
+echo  ║                                          ║
+echo  ║   前端: http://localhost:3266            ║
+echo  ║   后端: http://localhost:3001            ║
+echo  ║                                          ║
+echo  ║   提示:                                  ║
+echo  ║   - 确保 MySQL 服务已启动                ║
+echo  ║   - 首次使用请运行 npm run db:init       ║
+echo  ║   - 关闭此窗口不影响服务运行             ║
+echo  ║                                          ║
+echo  ╚══════════════════════════════════════════╝
 echo.
-echo 前端: http://localhost:3266
-echo 后端: http://localhost:3001
-echo API 健康检查: http://localhost:3001/api/health
-echo.
-echo 按任意键退出此窗口（服务将继续在后台运行）
-pause >nul
+
+:: 延迟后自动打开浏览器
+timeout /t 5 /nobreak >nul
+start http://localhost:3266
+
+exit

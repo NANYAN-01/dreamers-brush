@@ -4,6 +4,7 @@ const dotenv = require('dotenv');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const mysql = require('mysql2/promise');
 
 dotenv.config();
@@ -60,6 +61,31 @@ app.post('/api/generate-image', async (req, res) => {
     }
 
     console.log('🎨 收到图片生成请求:', { prompt, model, size });
+
+    // 检查缓存：是否已有相同 prompt 的生成记录
+    const connection = await pool.getConnection();
+    try {
+      const [cached] = await connection.query(
+        'SELECT gh.*, i.public_url as local_url FROM generation_history gh LEFT JOIN images i ON gh.image_id = i.id WHERE gh.prompt = ? AND gh.model = ? AND gh.image_id IS NOT NULL ORDER BY gh.created_at DESC LIMIT 1',
+        [prompt, model]
+      );
+
+      if (cached.length > 0 && cached[0].local_url) {
+        console.log('✅ 命中缓存，返回本地图片:', cached[0].local_url);
+        return res.json({
+          output: {
+            choices: [{
+              message: {
+                content: [{ image: cached[0].local_url }]
+              }
+            }]
+          },
+          cached: true
+        });
+      }
+    } finally {
+      connection.release();
+    }
 
     // 解析尺寸
     const [width, height] = size.split('*').map(Number);
@@ -119,15 +145,56 @@ app.post('/api/generate-image', async (req, res) => {
         const data = await response.json();
         console.log('✅ AI 生成成功');
 
-        // 保存到数据库
+        // 提取远程图片 URL
+        const remoteUrl = data?.output?.choices?.[0]?.message?.content?.[0]?.image;
+        let localImageUrl = null;
+        let imageId = null;
+
+        // 下载并保存到本地
+        if (remoteUrl) {
+          try {
+            console.log('📥 下载图片到本地...');
+            const imageResponse = await fetch(remoteUrl);
+            if (imageResponse.ok) {
+              const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+              const filename = `${Date.now()}-${Math.round(Math.random() * 1E9)}.png`;
+              const filePath = path.join(uploadDir, filename);
+              fs.writeFileSync(filePath, imageBuffer);
+
+              localImageUrl = `http://localhost:${PORT}/uploads/${filename}`;
+              console.log('✅ 图片已保存:', filename);
+
+              // 生成 UUID 并保存到 images 表
+              imageId = crypto.randomUUID();
+              const conn = await pool.getConnection();
+              try {
+                await conn.query(
+                  'INSERT INTO images (id, filename, original_name, file_size, mime_type, storage_path, public_url, width, height) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                  [imageId, filename, `generated-${filename}`, imageBuffer.length, 'image/png', `/uploads/${filename}`, localImageUrl, width, height]
+                );
+              } finally {
+                conn.release();
+              }
+            }
+          } catch (downloadError) {
+            console.warn('⚠️ 图片下载失败，使用远程 URL:', downloadError.message);
+          }
+        }
+
+        // 保存到 generation_history 表
         const connection = await pool.getConnection();
         try {
           await connection.query(
-            'INSERT INTO generation_history (character_desc, action_desc, prompt, model, size) VALUES (?, ?, ?, ?, ?)',
-            ['未知角色', '未知动作', prompt, model, size]
+            'INSERT INTO generation_history (character_desc, action_desc, prompt, model, size, image_id) VALUES (?, ?, ?, ?, ?, ?)',
+            ['未知角色', '未知动作', prompt, model, size, imageId]
           );
         } finally {
           connection.release();
+        }
+
+        // 如果下载成功，替换响应中的 URL 为本地 URL
+        if (localImageUrl && data.output?.choices?.[0]?.message?.content?.[0]) {
+          data.output.choices[0].message.content[0].image = localImageUrl;
         }
 
         // 返回响应

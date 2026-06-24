@@ -2,9 +2,16 @@ import { useState } from 'react';
 import { Sparkles, Loader2 } from 'lucide-react';
 import { buildPrompt, generateImage, extractImageUrl } from './services/imageGen';
 
+const MODELS = [
+  { value: 'qwen-image-2.0-pro-2026-04-22', label: '通义千问 2.0 Pro', desc: '高质量，推荐' },
+  { value: 'wan2.7-image', label: '万相 2.7', desc: '艺术风格' },
+  { value: 'wan2.7-image-pro', label: '万相 2.7 Pro', desc: '专业版' },
+];
+
 function App() {
   const [character, setCharacter] = useState('');
   const [action, setAction] = useState('');
+  const [model, setModel] = useState(MODELS[0].value);
   const [isLoading, setIsLoading] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +25,7 @@ function App() {
 
     try {
       const prompt = buildPrompt(character.trim(), action.trim());
-      const response = await generateImage(prompt, 'qwen-image-2.0', '1024*1536');
+      const response = await generateImage(prompt, model);
       const imageUrl = extractImageUrl(response);
 
       if (imageUrl) {
@@ -76,11 +83,37 @@ function App() {
             value={action}
             onChange={(e) => setAction(e.target.value)}
             placeholder="在云朵上钓星星"
-            className="w-full px-5 py-4 bg-white rounded-2xl border-2 border-[#A8D8C9] 
+            className="w-full px-5 py-4 bg-white rounded-2xl border-2 border-[#A8D8C9]
                        text-[#5A4A3A] placeholder-[#C8B8A8] outline-none
                        focus:border-[#DAB8C3] focus:ring-2 focus:ring-[#DAB8C3]/30
                        transition-all duration-300"
           />
+        </div>
+
+        <div className="space-y-2">
+          <label className="block text-[#8B7355] text-sm font-medium ml-1">
+            选择画风
+          </label>
+          <select
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            className="w-full px-5 py-4 bg-white rounded-2xl border-2 border-[#E8D8C8]
+                       text-[#5A4A3A] outline-none appearance-none cursor-pointer
+                       focus:border-[#A8D8C9] focus:ring-2 focus:ring-[#A8D8C9]/30
+                       transition-all duration-300"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%238B7355' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'right 16px center',
+              backgroundSize: '20px'
+            }}
+          >
+            {MODELS.map((m) => (
+              <option key={m.value} value={m.value}>
+                {m.label} - {m.desc}
+              </option>
+            ))}
+          </select>
         </div>
 
         <button

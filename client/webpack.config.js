@@ -5,6 +5,7 @@ module.exports = (env, argv) => {
   const isDev = argv.mode !== 'production';
 
   return {
+    context: __dirname,
     mode: isDev ? 'development' : 'production',
     entry: './src/index.tsx',
     output: {
@@ -36,7 +37,21 @@ module.exports = (env, argv) => {
         },
         {
           test: /\.css$/,
-          use: ['style-loader', 'css-loader', 'postcss-loader']
+          use: [
+            'style-loader',
+            'css-loader',
+            {
+              loader: 'postcss-loader',
+              options: {
+                postcssOptions: {
+                  plugins: [
+                    ['tailwindcss', { config: path.resolve(__dirname, 'tailwind.config.js') }],
+                    'autoprefixer'
+                  ]
+                }
+              }
+            }
+          ]
         },
         {
           test: /\.(png|jpe?g|gif|webp|ico|svg)$/i,
@@ -55,11 +70,24 @@ module.exports = (env, argv) => {
       ]
     },
     resolve: {
-      extensions: ['.ts', '.tsx', '.js', '.jsx']
+      extensions: ['.ts', '.tsx', '.js', '.jsx'],
+      modules: [
+        path.resolve(__dirname, 'node_modules'),
+        path.resolve(__dirname, '..', 'node_modules'),
+        'node_modules'
+      ]
+    },
+    resolveLoader: {
+      modules: [
+        path.resolve(__dirname, 'node_modules'),
+        path.resolve(__dirname, '..', 'node_modules'),
+        'node_modules'
+      ]
     },
     devServer: {
       port: 3266,
       allowedHosts: 'all',
+      static: false,
       historyApiFallback: {
         index: '/index.html',
         rewrites: [
